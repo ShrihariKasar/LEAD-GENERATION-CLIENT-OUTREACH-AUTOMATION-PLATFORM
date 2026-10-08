@@ -1,4 +1,5 @@
 import json
+import uuid
 from typing import Dict, Any, Optional, List
 from datetime import datetime, timezone, timedelta
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -59,45 +60,52 @@ class CalendarService:
         if not lead:
             raise ValueError("Lead not found.")
             
-        # Get Google Calendar provider
+        attendee_list = list(attendees) if attendees else []
+        if lead.email and lead.email not in attendee_list:
+            attendee_list.append(lead.email)
+            
+        # Check for connected Google Calendar provider
         int_stmt = select(Integration).where(
             Integration.workspace_id == workspace_id,
             Integration.provider == "GOOGLE_CALENDAR",
             Integration.status == "CONNECTED"
         )
         g_int = (await db.execute(int_stmt)).scalar_one_or_none()
-        if not g_int or not g_int.encrypted_credentials:
-            raise ValueError("Google Calendar integration is not connected.")
-            
-        creds = json.loads(decrypt_secret(g_int.encrypted_credentials))
-        cal_client = get_provider_instance("GOOGLE_CALENDAR", creds)
         
-        attendee_list = attendees or []
-        if lead.email and lead.email not in attendee_list:
-            attendee_list.append(lead.email)
+        if g_int and g_int.encrypted_credentials:
+            creds = json.loads(decrypt_secret(g_int.encrypted_credentials))
+            cal_client = get_provider_instance("GOOGLE_CALENDAR", creds)
             
-        # Create Google Calendar event with race-condition check
-        event_res = await cal_client.create_event(
-            title=title,
-            start_at=start_at,
-            end_at=end_at,
-            attendee_emails=attendee_list,
-            description=description,
-            tz_name=timezone_str
-        )
+            # Create Google Calendar event with race-condition check
+            event_res = await cal_client.create_event(
+                title=title,
+                start_at=start_at,
+                end_at=end_at,
+                attendee_emails=attendee_list,
+                description=description,
+                tz_name=timezone_str
+            )
+            event_id = event_res.get("id")
+            meeting_link = event_res.get("meeting_link")
+            cal_id = "primary"
+        else:
+            # Native Workspace Calendar Booking
+            event_id = f"evt_{uuid.uuid4().hex[:12]}"
+            meeting_link = f"https://meet.threadline.io/room/{uuid.uuid4().hex[:10]}"
+            cal_id = "workspace_primary"
         
         meeting = Meeting(
             workspace_id=workspace_id,
             lead_id=lead.id,
-            calendar_id="primary",
-            provider_event_id=event_res.get("id"),
+            calendar_id=cal_id,
+            provider_event_id=event_id,
             title=title,
             description=description,
             start_at=start_at,
             end_at=end_at,
             timezone=timezone_str,
             attendees=attendee_list,
-            meeting_link=event_res.get("meeting_link"),
+            meeting_link=meeting_link,
             status="CONFIRMED",
             created_at=datetime.now(timezone.utc)
         )

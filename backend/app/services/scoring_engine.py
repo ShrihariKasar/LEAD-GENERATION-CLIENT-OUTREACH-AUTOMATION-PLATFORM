@@ -32,9 +32,9 @@ class ScoringEngine:
         
         # 1. Negative criteria check (Immediate disqualification or deduction)
         neg = icp.negative_criteria or {}
-        excluded_industries = [i.lower() for i in neg.get("excluded_industries", [])]
-        excluded_locations = [l.lower() for l in neg.get("excluded_locations", [])]
-        excluded_titles = [t.lower() for t in neg.get("excluded_titles", [])]
+        excluded_industries = [i.lower() for i in neg.get("excluded_industries", []) if isinstance(i, str)]
+        excluded_locations = [l.lower() for l in neg.get("excluded_locations", []) if isinstance(l, str)]
+        excluded_titles = [t.lower() for t in neg.get("excluded_titles", []) if isinstance(t, str)]
         
         lead_title = (lead.job_title or "").lower()
         lead_industry = (lead.industry or (company.industry if company else "") or "").lower()
@@ -78,8 +78,8 @@ class ScoringEngine:
 
         # 2. Title & Seniority Fit
         w_title = weights.get("title", 25)
-        target_titles = [t.lower() for t in (icp.target_job_titles or [])]
-        target_seniorities = [s.lower() for s in (icp.target_seniorities or [])]
+        target_titles = [t.lower() for t in (icp.target_job_titles or []) if isinstance(t, str)]
+        target_seniorities = [s.lower() for s in (icp.target_seniorities or []) if isinstance(s, str)]
         
         title_matched = False
         seniority_matched = False
@@ -127,7 +127,7 @@ class ScoringEngine:
 
         # 3. Industry Fit
         w_industry = weights.get("industry", 20)
-        target_industries = [i.lower() for i in (icp.target_industries or [])]
+        target_industries = [i.lower() for i in (icp.target_industries or []) if isinstance(i, str)]
         
         if lead_industry:
             known_data_points += 1
@@ -214,7 +214,7 @@ class ScoringEngine:
 
         # 5. Geography Fit
         w_geo = weights.get("geography", 15)
-        target_geos = [g.lower() for g in (icp.target_geographies or [])]
+        target_geos = [g.lower() for g in (icp.target_geographies or []) if isinstance(g, str)]
         
         if lead_location.strip():
             known_data_points += 1
@@ -249,8 +249,8 @@ class ScoringEngine:
 
         # 6. Technology Stack Fit
         w_tech = weights.get("technology", 15)
-        target_techs = [t.lower() for t in (icp.target_technologies or [])]
-        company_techs = [t.lower() for t in (company.technologies if company else [])]
+        target_techs = [t.lower() for t in (icp.target_technologies or []) if isinstance(t, str)]
+        company_techs = [t.lower() for t in (company.technologies if company and company.technologies else []) if isinstance(t, str)]
         
         if company_techs:
             known_data_points += 1

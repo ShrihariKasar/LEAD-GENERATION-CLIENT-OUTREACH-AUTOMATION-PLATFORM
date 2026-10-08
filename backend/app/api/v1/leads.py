@@ -4,12 +4,13 @@ import json
 from typing import List, Optional, Dict, Any
 from fastapi import APIRouter, Depends, HTTPException, status, Query, UploadFile, File
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, and_, or_, desc, asc, delete
+from sqlalchemy import select, and_, or_, desc, asc, delete, func
 from backend.app.database import get_db
 from backend.app.models import Lead, Company, LeadScore, LeadEnrichment, Integration, OutreachSequence, WorkspaceMember
 from backend.app.schemas import (
     LeadResponse, LeadCreate, LeadUpdate, LeadDiscoveryRequest,
-    LeadBulkActionRequest, DecisionTraceResponse, NextBestActionResponse
+    LeadBulkActionRequest, DecisionTraceResponse, NextBestActionResponse,
+    LeadListResponse, LeadDiscoveryResponse, CSVImportResponse, BulkActionResponse
 )
 from backend.app.auth.dependencies import get_current_workspace_context, require_roles
 from backend.app.services.lead_service import LeadService
@@ -21,7 +22,7 @@ from backend.app.core.security import decrypt_secret
 
 router = APIRouter(prefix="/leads", tags=["Leads"])
 
-@router.get("", response_model=Dict[str, Any])
+@router.get("", response_model=LeadListResponse)
 async def list_leads(
     query: Optional[str] = None,
     lead_status: Optional[str] = None,
@@ -37,11 +38,11 @@ async def list_leads(
     member: WorkspaceMember = Depends(get_current_workspace_context),
     db: AsyncSession = Depends(get_db)
 ):
-    stmt = select(Lead).where(Lead.workspace_id == member.workspace_id)
+    base_stmt = select(Lead).where(Lead.workspace_id == member.workspace_id)
     
     if query:
         term = f"%{query.strip()}%"
-        stmt = stmt.where(
+        base_stmt = base_stmt.where(
             or_(
                 Lead.full_name.ilike(term),
                 Lead.first_name.ilike(term),
@@ -53,33 +54,33 @@ async def list_leads(
         )
         
     if lead_status:
-        stmt = stmt.where(Lead.lead_status == lead_status)
+        base_stmt = base_stmt.where(Lead.lead_status == lead_status)
     if qualification_status:
-        stmt = stmt.where(Lead.qualification_status == qualification_status)
+        base_stmt = base_stmt.where(Lead.qualification_status == qualification_status)
     if outreach_status:
-        stmt = stmt.where(Lead.outreach_status == outreach_status)
+        base_stmt = base_stmt.where(Lead.outreach_status == outreach_status)
     if icp_profile_id:
-        stmt = stmt.where(Lead.icp_profile_id == icp_profile_id)
+        base_stmt = base_stmt.where(Lead.icp_profile_id == icp_profile_id)
     if min_icp_score is not None:
-        stmt = stmt.where(Lead.icp_score >= min_icp_score)
+        base_stmt = base_stmt.where(Lead.icp_score >= min_icp_score)
     if source:
-        stmt = stmt.where(Lead.source == source)
+        base_stmt = base_stmt.where(Lead.source == source)
         
+    # Total count with filters applied
+    count_stmt = select(func.count(Lead.id)).where(base_stmt.whereclause)
+    total = (await db.execute(count_stmt)).scalar() or 0
+
     # Sorting
     sort_col = getattr(Lead, sort_by, Lead.created_at)
     if sort_order.lower() == "asc":
-        stmt = stmt.order_by(asc(sort_col))
+        paged_stmt = base_stmt.order_by(asc(sort_col))
     else:
-        stmt = stmt.order_by(desc(sort_col))
+        paged_stmt = base_stmt.order_by(desc(sort_col))
         
     offset = (page - 1) * limit
-    paged_stmt = stmt.offset(offset).limit(limit)
+    paged_stmt = paged_stmt.offset(offset).limit(limit)
     
     leads = (await db.execute(paged_stmt)).scalars().all()
-    
-    # Total count
-    count_stmt = select(Lead.id).where(Lead.workspace_id == member.workspace_id)
-    total = len((await db.execute(count_stmt)).scalars().all())
     
     return {
         "items": leads,
@@ -104,7 +105,7 @@ async def create_lead(
     )
     return lead
 
-@router.post("/discover", response_model=Dict[str, Any])
+@router.post("/discover", response_model=LeadDiscoveryResponse)
 async def discover_leads(
     payload: LeadDiscoveryRequest,
     member: WorkspaceMember = Depends(require_roles(["OWNER", "ADMIN", "SALES_MANAGER", "SALES_REP"])),
@@ -165,7 +166,7 @@ async def discover_leads(
         "leads": created_leads
     }
 
-@router.post("/import-csv", response_model=Dict[str, Any])
+@router.post("/import-csv", response_model=CSVImportResponse)
 async def import_leads_csv(
     file: UploadFile = File(...),
     icp_profile_id: Optional[str] = Query(None),
@@ -320,7 +321,7 @@ async def get_lead_telegram_link(
         "token": lead.telegram_deep_link_token
     }
 
-@router.post("/bulk", response_model=Dict[str, Any])
+@router.post("/bulk", response_model=BulkActionResponse)
 async def bulk_action_leads(
     payload: LeadBulkActionRequest,
     member: WorkspaceMember = Depends(require_roles(["OWNER", "ADMIN", "SALES_MANAGER", "SALES_REP"])),

@@ -15,6 +15,32 @@ from backend.app.services.audit_service import AuditService
 
 router = APIRouter(prefix="/sequences", tags=["Sequences"])
 
+async def _build_sequence_response(seq: OutreachSequence, db: AsyncSession) -> OutreachSequenceResponse:
+    steps_stmt = select(SequenceStep).where(SequenceStep.sequence_id == seq.id).order_by(SequenceStep.step_number.asc())
+    steps = (await db.execute(steps_stmt)).scalars().all()
+    
+    enr_stmt = select(func.count(SequenceEnrollment.id)).where(SequenceEnrollment.sequence_id == seq.id)
+    enr_count = (await db.execute(enr_stmt)).scalar() or 0
+    
+    act_stmt = select(func.count(SequenceEnrollment.id)).where(SequenceEnrollment.sequence_id == seq.id, SequenceEnrollment.status == "ACTIVE")
+    act_count = (await db.execute(act_stmt)).scalar() or 0
+    
+    return OutreachSequenceResponse(
+        id=seq.id,
+        workspace_id=seq.workspace_id,
+        name=seq.name,
+        description=seq.description,
+        is_active=seq.is_active,
+        trigger_type=seq.trigger_type,
+        min_icp_score=seq.min_icp_score,
+        stop_conditions=seq.stop_conditions,
+        created_at=seq.created_at,
+        updated_at=seq.updated_at,
+        steps=[SequenceStepResponse.model_validate(s) for s in steps],
+        enrollments_count=enr_count,
+        active_count=act_count
+    )
+
 @router.get("", response_model=List[OutreachSequenceResponse])
 async def list_sequences(
     member: WorkspaceMember = Depends(get_current_workspace_context),
@@ -25,19 +51,7 @@ async def list_sequences(
     
     res = []
     for s in seqs:
-        steps_stmt = select(SequenceStep).where(SequenceStep.sequence_id == s.id).order_by(SequenceStep.step_number.asc())
-        steps = (await db.execute(steps_stmt)).scalars().all()
-        
-        enr_stmt = select(func.count(SequenceEnrollment.id)).where(SequenceEnrollment.sequence_id == s.id)
-        enr_count = (await db.execute(enr_stmt)).scalar() or 0
-        
-        act_stmt = select(func.count(SequenceEnrollment.id)).where(SequenceEnrollment.sequence_id == s.id, SequenceEnrollment.status == "ACTIVE")
-        act_count = (await db.execute(act_stmt)).scalar() or 0
-        
-        s.steps = steps
-        s.enrollments_count = enr_count
-        s.active_count = act_count
-        res.append(s)
+        res.append(await _build_sequence_response(s, db))
         
     return res
 
@@ -84,11 +98,7 @@ async def create_sequence(
     )
     
     await db.commit()
-    await db.refresh(seq)
-    seq.steps = steps
-    seq.enrollments_count = 0
-    seq.active_count = 0
-    return seq
+    return await _build_sequence_response(seq, db)
 
 @router.get("/{sequence_id}", response_model=OutreachSequenceResponse)
 async def get_sequence(
@@ -101,14 +111,7 @@ async def get_sequence(
     if not seq:
         raise HTTPException(status_code=404, detail="Sequence not found")
         
-    steps = (await db.execute(select(SequenceStep).where(SequenceStep.sequence_id == seq.id).order_by(SequenceStep.step_number.asc()))).scalars().all()
-    enr_count = (await db.execute(select(func.count(SequenceEnrollment.id)).where(SequenceEnrollment.sequence_id == seq.id))).scalar() or 0
-    act_count = (await db.execute(select(func.count(SequenceEnrollment.id)).where(SequenceEnrollment.sequence_id == seq.id, SequenceEnrollment.status == "ACTIVE"))).scalar() or 0
-    
-    seq.steps = steps
-    seq.enrollments_count = enr_count
-    seq.active_count = act_count
-    return seq
+    return await _build_sequence_response(seq, db)
 
 @router.patch("/{sequence_id}", response_model=OutreachSequenceResponse)
 async def update_sequence(
@@ -180,8 +183,17 @@ async def list_sequence_enrollments(
     member: WorkspaceMember = Depends(get_current_workspace_context),
     db: AsyncSession = Depends(get_db)
 ):
+    seq_stmt = select(OutreachSequence).where(
+        OutreachSequence.id == sequence_id,
+        OutreachSequence.workspace_id == member.workspace_id
+    )
+    seq = (await db.execute(seq_stmt)).scalar_one_or_none()
+    if not seq:
+        raise HTTPException(status_code=404, detail="Sequence not found")
+
     stmt = select(SequenceEnrollment, Lead).join(Lead, SequenceEnrollment.lead_id == Lead.id).where(
-        SequenceEnrollment.sequence_id == sequence_id
+        SequenceEnrollment.sequence_id == sequence_id,
+        Lead.workspace_id == member.workspace_id
     ).order_by(SequenceEnrollment.created_at.desc())
     
     results = (await db.execute(stmt)).all()

@@ -248,11 +248,15 @@ class AIQualificationService:
                 "ai_run_id": ai_run.id
             }
         except Exception as e:
-            ai_run.success = False
-            ai_run.error = str(e)
-            ai_run.latency_ms = int((time.time() - start_time) * 1000)
-            db.add(ai_run)
-            await db.commit()
+            try:
+                await db.rollback()
+                ai_run.success = False
+                ai_run.error = str(e)
+                ai_run.latency_ms = int((time.time() - start_time) * 1000)
+                db.add(ai_run)
+                await db.commit()
+            except Exception:
+                pass
             return {
                 "success": False,
                 "error": str(e),

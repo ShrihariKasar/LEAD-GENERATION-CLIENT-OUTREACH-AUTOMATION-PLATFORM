@@ -279,6 +279,9 @@ class LeadScoreResponse(BaseModel):
     class Config:
         from_attributes = True
 
+class LeadEnrichmentRequest(BaseModel):
+    providers: Optional[List[str]] = None
+
 class LeadEnrichmentResponse(BaseModel):
     id: str
     lead_id: str
@@ -392,6 +395,27 @@ class LeadBulkActionRequest(BaseModel):
     action: str  # "QUALIFY", "PAUSE", "ENROLL_SEQUENCE", "REMOVE_SEQUENCE", "MARK_DO_NOT_CONTACT", "DELETE"
     sequence_id: Optional[str] = None
     qualification_status: Optional[str] = None
+
+class LeadListResponse(BaseModel):
+    items: List[LeadResponse]
+    total: int
+    page: int
+    limit: int
+    pages: int
+
+class LeadDiscoveryResponse(BaseModel):
+    discovered_total: int
+    created_count: int
+    skipped_duplicates: int
+    leads: List[LeadResponse]
+
+class CSVImportResponse(BaseModel):
+    imported_count: int
+    skipped_duplicates: int
+
+class BulkActionResponse(BaseModel):
+    affected_count: int
+    action: str
 
 # ----------------- CONVERSATION & MESSAGE SCHEMAS -----------------
 class MessageCreate(BaseModel):

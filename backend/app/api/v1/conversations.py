@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, desc
 from backend.app.database import get_db
 from backend.app.models import Conversation, Message, Lead, QualificationAnswer, Integration, WorkspaceMember
-from backend.app.schemas import ConversationResponse, MessageCreate, MessageResponse
+from backend.app.schemas import ConversationResponse, MessageCreate, MessageResponse, QualificationAnswerResponse, LeadResponse
 from backend.app.auth.dependencies import get_current_workspace_context, require_roles
 from backend.app.services.conversation_service import ConversationService
 from backend.app.services.ai_qualification_service import AIQualificationService
@@ -15,6 +15,34 @@ from backend.app.integrations import get_provider_instance
 from backend.app.core.security import decrypt_secret
 
 router = APIRouter(prefix="/conversations", tags=["Conversations"])
+
+async def _build_conversation_response(conv: Conversation, db: AsyncSession) -> ConversationResponse:
+    l_stmt = select(Lead).where(Lead.id == conv.lead_id)
+    lead = (await db.execute(l_stmt)).scalar_one_or_none()
+    
+    m_stmt = select(Message).where(Message.conversation_id == conv.id).order_by(Message.created_at.asc())
+    messages = (await db.execute(m_stmt)).scalars().all()
+    
+    q_stmt = select(QualificationAnswer).where(QualificationAnswer.conversation_id == conv.id).order_by(QualificationAnswer.created_at.asc())
+    answers = (await db.execute(q_stmt)).scalars().all()
+    
+    return ConversationResponse(
+        id=conv.id,
+        workspace_id=conv.workspace_id,
+        lead_id=conv.lead_id,
+        channel=conv.channel,
+        state=conv.state,
+        ai_paused=conv.ai_paused,
+        human_assigned_to=conv.human_assigned_to,
+        last_message_at=conv.last_message_at,
+        last_intent=conv.last_intent,
+        context_data=conv.context_data or {},
+        created_at=conv.created_at,
+        updated_at=conv.updated_at,
+        lead=LeadResponse.model_validate(lead) if lead else None,
+        messages=[MessageResponse.model_validate(m) for m in messages],
+        qualification_answers=[QualificationAnswerResponse.model_validate(a) for a in answers]
+    )
 
 @router.get("", response_model=List[ConversationResponse])
 async def list_conversations(
@@ -36,22 +64,9 @@ async def list_conversations(
     stmt = stmt.order_by(desc(Conversation.last_message_at), desc(Conversation.created_at))
     conversations = (await db.execute(stmt)).scalars().all()
     
-    # Load relationships
     result = []
     for c in conversations:
-        l_stmt = select(Lead).where(Lead.id == c.lead_id)
-        lead = (await db.execute(l_stmt)).scalar_one_or_none()
-        
-        m_stmt = select(Message).where(Message.conversation_id == c.id).order_by(Message.created_at.asc())
-        messages = (await db.execute(m_stmt)).scalars().all()
-        
-        q_stmt = select(QualificationAnswer).where(QualificationAnswer.conversation_id == c.id).order_by(QualificationAnswer.created_at.asc())
-        answers = (await db.execute(q_stmt)).scalars().all()
-        
-        c.lead = lead
-        c.messages = messages
-        c.qualification_answers = answers
-        result.append(c)
+        result.append(await _build_conversation_response(c, db))
         
     return result
 
@@ -66,14 +81,7 @@ async def get_conversation(
     if not conv:
         raise HTTPException(status_code=404, detail="Conversation not found")
         
-    lead = (await db.execute(select(Lead).where(Lead.id == conv.lead_id))).scalar_one_or_none()
-    messages = (await db.execute(select(Message).where(Message.conversation_id == conv.id).order_by(Message.created_at.asc()))).scalars().all()
-    answers = (await db.execute(select(QualificationAnswer).where(QualificationAnswer.conversation_id == conv.id).order_by(QualificationAnswer.created_at.asc()))).scalars().all()
-    
-    conv.lead = lead
-    conv.messages = messages
-    conv.qualification_answers = answers
-    return conv
+    return await _build_conversation_response(conv, db)
 
 @router.post("/{conversation_id}/messages", response_model=MessageResponse)
 async def send_human_message(
