@@ -1,3 +1,7 @@
+import sys
+import os
+sys.path.insert(0, os.getcwd())
+
 import json
 import uuid
 import sqlite3
@@ -28,6 +32,13 @@ def run_seed():
         return
 
     print(f"Found {len(workspaces)} workspaces.")
+
+    # Update passwords for all users to SecurePassword2026!
+    from backend.app.core.security import get_password_hash
+    demo_hashed = get_password_hash("SecurePassword2026!")
+    c.execute("UPDATE users SET hashed_password = ?", (demo_hashed,))
+    conn.commit()
+    print("Updated all users with password: SecurePassword2026!")
 
     for ws_row in workspaces:
         ws_id = ws_row[0]
