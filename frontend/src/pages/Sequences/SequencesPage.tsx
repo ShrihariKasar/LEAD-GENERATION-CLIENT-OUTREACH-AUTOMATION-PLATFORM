@@ -1,12 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../../api/client';
 import { OutreachSequence, SequenceStep } from '../../types';
+import { EmptyState } from '../../components/common/EmptyState';
+import { useToast } from '../../components/common/Toast';
 import {
   Workflow, Plus, Play, Pause, Trash2, Clock, Check, X,
   ArrowDown, ChevronRight, Send, AlertCircle
 } from 'lucide-react';
 
 export const SequencesPage: React.FC = () => {
+  const { addToast } = useToast();
   const [sequences, setSequences] = useState<OutreachSequence[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -17,14 +20,14 @@ export const SequencesPage: React.FC = () => {
   const [steps, setSteps] = useState<SequenceStep[]>([
     {
       step_number: 1,
-      channel: 'TELEGRAM',
+      channel: 'EMAIL',
       delay_hours: 0,
       condition_rule: 'ALWAYS',
       template_content: "Hi {{first_name}}, I noticed your work leading engineering at {{company}}. Would you be open to a brief discussion about streamlining your data pipeline?"
     },
     {
       step_number: 2,
-      channel: 'TELEGRAM',
+      channel: 'EMAIL',
       delay_hours: 48,
       condition_rule: 'IF_NO_REPLY',
       template_content: "Hi {{first_name}}, following up on my previous note. We recently helped a similar team in your space reduce replication lag by 60%. Happy to share a quick 15-min overview."
@@ -60,9 +63,10 @@ export const SequencesPage: React.FC = () => {
       setShowModal(false);
       setName('');
       setDescription('');
+      addToast('Outreach Sequence deployed successfully.');
       await loadSequences();
-    } catch {
-      //
+    } catch (err: any) {
+      addToast(err.message || 'Failed to create sequence', 'error');
     }
   };
 
@@ -70,12 +74,14 @@ export const SequencesPage: React.FC = () => {
     try {
       if (seq.is_active) {
         await api.pauseSequence(seq.id);
+        addToast(`Sequence "${seq.name}" paused.`);
       } else {
         await api.activateSequence(seq.id);
+        addToast(`Sequence "${seq.name}" activated.`);
       }
       await loadSequences();
-    } catch {
-      //
+    } catch (err: any) {
+      addToast(err.message || 'Failed to toggle sequence status', 'error');
     }
   };
 
@@ -85,7 +91,7 @@ export const SequencesPage: React.FC = () => {
       ...steps,
       {
         step_number: nextNum,
-        channel: 'TELEGRAM',
+        channel: 'EMAIL',
         delay_hours: 72,
         condition_rule: 'IF_NO_REPLY',
         template_content: "Hi {{first_name}}, just checking in one last time regarding {{company}}'s operations. Let me know if you'd like to connect later this month."
@@ -101,91 +107,95 @@ export const SequencesPage: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between border-b border-slate-800 pb-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 pb-5">
         <div>
-          <h1 className="text-lg font-semibold text-slate-100 font-mono tracking-tight">Outreach Sequences</h1>
-          <p className="text-xs text-slate-400 mt-0.5">Automated multi-step touchpoints, follow-up delays, and instant opt-out protection</p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight">
+            Outreach Sequences
+          </h1>
+          <p className="text-sm text-slate-500 mt-1 font-medium">
+            Automated multi-step touchpoints, delay offsets, and automatic stop policies upon prospect reply.
+          </p>
         </div>
 
         <button
           onClick={() => setShowModal(true)}
-          className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded text-xs font-medium flex items-center gap-1.5 transition cursor-pointer"
+          className="inline-flex items-center gap-2 bg-slate-900 hover:bg-slate-800 text-white font-medium text-sm py-2 px-4 rounded-lg shadow-sm transition-all active:scale-[0.99] cursor-pointer"
         >
-          <Plus className="w-3.5 h-3.5" />
-          Create Sequence
+          <Plus className="w-4 h-4" />
+          <span>Create Sequence</span>
         </button>
       </div>
 
       {/* Sequence List */}
       {loading ? (
-        <div className="p-8 text-center text-xs text-slate-400 font-mono">Loading sequences...</div>
-      ) : sequences.length === 0 ? (
-        <div className="bg-[#0f172a] border border-slate-800 rounded-lg p-10 text-center max-w-lg mx-auto space-y-3">
-          <Workflow className="w-8 h-8 text-emerald-400 mx-auto" />
-          <h2 className="text-sm font-semibold text-slate-200">No Outreach Sequences Created</h2>
-          <p className="text-xs text-slate-400">
-            Build multi-step automated sequences with grounded follow-ups, reply conditions, and automatic stop policies.
-          </p>
-          <button
-            onClick={() => setShowModal(true)}
-            className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded text-xs font-semibold cursor-pointer"
-          >
-            Create First Sequence
-          </button>
+        <div className="p-12 text-center text-sm font-medium text-slate-500 flex items-center justify-center gap-2">
+          <div className="w-4 h-4 border-2 border-slate-900 border-t-transparent rounded-full animate-spin" />
+          <span>Loading sequences...</span>
         </div>
+      ) : sequences.length === 0 ? (
+        <EmptyState
+          type="no-data"
+          icon={Workflow}
+          title="No Outreach Sequences Created"
+          description="Build multi-step automated sequences with grounded follow-ups, reply conditions, and automatic stop policies."
+          actionText="Create First Sequence"
+          onAction={() => setShowModal(true)}
+        />
       ) : (
-        <div className="space-y-4">
+        <div className="space-y-5">
           {sequences.map((seq) => (
-            <div key={seq.id} className="bg-[#0f172a] border border-slate-800 rounded-lg p-5 space-y-4">
-              <div className="flex items-start justify-between">
+            <div key={seq.id} className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm space-y-4 hover:border-slate-300 transition">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div>
-                  <div className="flex items-center gap-2">
-                    <h2 className="text-sm font-semibold text-slate-100 font-mono">{seq.name}</h2>
-                    <span className={`text-[10px] px-2 py-0.5 rounded font-mono border ${
+                  <div className="flex items-center gap-2.5">
+                    <h2 className="text-base font-bold text-slate-900">{seq.name}</h2>
+                    <span className={`text-xs px-2.5 py-0.5 rounded-md font-semibold border ${
                       seq.is_active
-                        ? 'bg-emerald-950/60 text-emerald-300 border-emerald-800/60'
-                        : 'bg-slate-900 text-slate-400 border-slate-800'
+                        ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                        : 'bg-slate-100 text-slate-700 border-slate-200'
                     }`}>
                       {seq.is_active ? 'ACTIVE' : 'PAUSED'}
                     </span>
                   </div>
                   {seq.description && (
-                    <p className="text-xs text-slate-400 mt-1">{seq.description}</p>
+                    <p className="text-xs text-slate-500 mt-1 font-medium">{seq.description}</p>
                   )}
                 </div>
 
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => handleToggleActive(seq)}
-                    className={`px-2.5 py-1 rounded text-xs font-mono border flex items-center gap-1 cursor-pointer ${
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold border flex items-center gap-1.5 cursor-pointer shadow-2xs transition active:scale-95 ${
                       seq.is_active
-                        ? 'bg-amber-950/60 text-amber-300 border-amber-800/60 hover:bg-amber-900'
-                        : 'bg-emerald-950/60 text-emerald-300 border-emerald-800/60 hover:bg-emerald-900'
+                        ? 'bg-amber-50 hover:bg-amber-100 text-amber-800 border-amber-200'
+                        : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border-emerald-200'
                     }`}
                   >
-                    {seq.is_active ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
-                    {seq.is_active ? 'Pause' : 'Activate'}
+                    {seq.is_active ? <Pause className="w-3.5 h-3.5 text-amber-600" /> : <Play className="w-3.5 h-3.5 text-emerald-600" />}
+                    <span>{seq.is_active ? 'Pause Sequence' : 'Activate Sequence'}</span>
                   </button>
                 </div>
               </div>
 
-              {/* Vertical Visual Flow */}
-              <div className="space-y-2 pt-2">
+              {/* Step Progression Timeline */}
+              <div className="space-y-3 pt-2">
                 {seq.steps.map((step, idx) => (
                   <div key={idx} className="space-y-2">
                     {idx > 0 && (
-                      <div className="flex items-center gap-2 pl-4 text-[11px] text-slate-500 font-mono">
-                        <ArrowDown className="w-3.5 h-3.5" />
+                      <div className="flex items-center gap-2 pl-4 text-xs text-slate-500 font-medium">
+                        <ArrowDown className="w-3.5 h-3.5 text-slate-400" />
                         <span>Wait {step.delay_hours} hours • Condition: {step.condition_rule}</span>
                       </div>
                     )}
-                    <div className="p-3 bg-[#090d16] border border-slate-800 rounded flex items-start justify-between gap-4">
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2 text-[11px] font-mono text-emerald-400">
-                          <span>STEP {step.step_number}</span>
-                          <span className="text-slate-400">via {step.channel}</span>
+                    <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl flex items-start justify-between gap-4">
+                      <div className="space-y-1.5 flex-1">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-bold text-slate-900 bg-white border border-slate-200 px-2 py-0.5 rounded shadow-2xs">
+                            STEP {step.step_number}
+                          </span>
+                          <span className="text-xs text-slate-500 font-medium">via {step.channel}</span>
                         </div>
-                        <div className="text-xs text-slate-200 font-mono whitespace-pre-wrap">
+                        <div className="text-xs text-slate-700 leading-relaxed font-medium">
                           {step.template_content}
                         </div>
                       </div>
@@ -195,9 +205,13 @@ export const SequencesPage: React.FC = () => {
               </div>
 
               {/* Stats Footer */}
-              <div className="pt-3 border-t border-slate-800/80 flex items-center justify-between text-xs font-mono text-slate-400">
-                <div>Enrolled: <span className="text-slate-200">{seq.enrollments_count} leads</span></div>
-                <div>Active: <span className="text-emerald-400 font-semibold">{seq.active_count}</span></div>
+              <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs bg-slate-50 p-3 rounded-lg border border-slate-100 font-medium">
+                <div className="text-slate-600">
+                  Enrolled: <span className="text-slate-900 font-bold">{seq.enrollments_count} prospects</span>
+                </div>
+                <div className="text-slate-600">
+                  Active in Cadence: <span className="text-emerald-700 font-bold">{seq.active_count}</span>
+                </div>
               </div>
             </div>
           ))}
@@ -206,141 +220,134 @@ export const SequencesPage: React.FC = () => {
 
       {/* Sequence Builder Modal */}
       {showModal && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 overflow-y-auto">
-          <div className="bg-[#0f172a] border border-slate-800 rounded-lg max-w-2xl w-full p-6 space-y-4 my-8">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-              <h2 className="text-sm font-semibold text-slate-100 flex items-center gap-2 font-mono">
-                <Workflow className="w-4 h-4 text-emerald-400" />
-                Build Visual Outreach Sequence
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-50 overflow-y-auto">
+          <div className="bg-white border border-slate-200 rounded-2xl max-w-xl w-full p-6 space-y-4 my-8 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                <Workflow className="w-4 h-4 text-emerald-600" />
+                Configure Multi-Step Sequence
               </h2>
-              <button onClick={() => setShowModal(false)} className="text-slate-400 hover:text-slate-200">
-                <X className="w-4 h-4" />
+              <button onClick={() => setShowModal(false)} className="text-slate-400 hover:text-slate-600 cursor-pointer">
+                <X className="w-5 h-5" />
               </button>
             </div>
 
             <form onSubmit={handleCreateSequence} className="space-y-4 text-xs">
               <div>
-                <label className="block text-slate-400 font-mono mb-1">Sequence Name</label>
+                <label className="block text-slate-700 font-semibold mb-1">Sequence Name</label>
                 <input
                   type="text"
                   required
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  placeholder="e.g. Engineering Leadership Outbound"
-                  className="w-full bg-[#090d16] border border-slate-700 rounded px-2.5 py-1.5 text-slate-200 font-mono"
+                  placeholder="e.g. Enterprise VP Eng — Data Pipeline"
+                  className="w-full bg-slate-50 focus:bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-900 transition"
                 />
               </div>
 
-              {/* Dynamic Steps */}
-              <div className="space-y-3">
+              <div>
+                <label className="block text-slate-700 font-semibold mb-1">Description / Goal</label>
+                <input
+                  type="text"
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder="e.g. 3-touch sequence focusing on latency reduction"
+                  className="w-full bg-slate-50 focus:bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-900 transition"
+                />
+              </div>
+
+              {/* Steps List */}
+              <div className="space-y-3 pt-2">
                 <div className="flex items-center justify-between">
-                  <span className="text-slate-400 font-mono font-semibold">Sequence Steps</span>
+                  <span className="font-bold text-slate-900 text-sm">Sequence Steps</span>
                   <button
                     type="button"
                     onClick={addStep}
-                    className="text-emerald-400 hover:underline font-mono text-[11px]"
+                    className="text-xs font-semibold text-blue-600 hover:text-blue-700 cursor-pointer"
                   >
                     + Add Step
                   </button>
                 </div>
 
-                {steps.map((step, idx) => (
-                  <div key={idx} className="p-3 bg-[#090d16] border border-slate-800 rounded space-y-2">
+                {steps.map((st, i) => (
+                  <div key={i} className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-2.5">
                     <div className="flex items-center justify-between">
-                      <span className="font-mono text-emerald-400 font-semibold">Step {idx + 1}</span>
+                      <span className="font-bold text-slate-900 text-xs">Step {i + 1}</span>
                       {steps.length > 1 && (
                         <button
                           type="button"
-                          onClick={() => removeStep(idx)}
-                          className="text-slate-500 hover:text-rose-400"
+                          onClick={() => removeStep(i)}
+                          className="text-rose-500 hover:text-rose-700 p-1 cursor-pointer"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
                       )}
                     </div>
 
-                    <div className="grid grid-cols-3 gap-2">
+                    <div className="grid grid-cols-2 gap-2">
                       <div>
-                        <label className="block text-slate-500 text-[10px] font-mono mb-0.5">Channel</label>
+                        <label className="block text-slate-500 text-[11px] font-medium mb-1">Channel</label>
                         <select
-                          value={step.channel}
+                          value={st.channel}
                           onChange={(e) => {
                             const updated = [...steps];
-                            updated[idx].channel = e.target.value;
+                            updated[i].channel = e.target.value as any;
                             setSteps(updated);
                           }}
-                          className="w-full bg-[#0f172a] border border-slate-700 rounded px-2 py-1 text-slate-200 font-mono"
+                          className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-800"
                         >
-                          <option value="TELEGRAM">Telegram</option>
                           <option value="EMAIL">Email</option>
-                          <option value="LINKEDIN">LinkedIn (Assisted)</option>
+                          <option value="TELEGRAM">Telegram</option>
+                          <option value="LINKEDIN">LinkedIn</option>
                         </select>
                       </div>
 
                       <div>
-                        <label className="block text-slate-500 text-[10px] font-mono mb-0.5">Delay (Hours)</label>
+                        <label className="block text-slate-500 text-[11px] font-medium mb-1">Delay (Hours after prior step)</label>
                         <input
                           type="number"
                           min="0"
-                          value={step.delay_hours}
+                          value={st.delay_hours}
                           onChange={(e) => {
                             const updated = [...steps];
-                            updated[idx].delay_hours = Number(e.target.value);
+                            updated[i].delay_hours = Number(e.target.value);
                             setSteps(updated);
                           }}
-                          className="w-full bg-[#0f172a] border border-slate-700 rounded px-2 py-1 text-slate-200 font-mono"
+                          className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-800"
                         />
-                      </div>
-
-                      <div>
-                        <label className="block text-slate-500 text-[10px] font-mono mb-0.5">Condition</label>
-                        <select
-                          value={step.condition_rule}
-                          onChange={(e) => {
-                            const updated = [...steps];
-                            updated[idx].condition_rule = e.target.value;
-                            setSteps(updated);
-                          }}
-                          className="w-full bg-[#0f172a] border border-slate-700 rounded px-2 py-1 text-slate-200 font-mono"
-                        >
-                          <option value="ALWAYS">Always Send</option>
-                          <option value="IF_NO_REPLY">If No Reply</option>
-                        </select>
                       </div>
                     </div>
 
                     <div>
-                      <label className="block text-slate-500 text-[10px] font-mono mb-0.5">
-                        Template Content (Variables: <code className="text-emerald-400">{"{{first_name}}"}</code>, <code className="text-emerald-400">{"{{company}}"}</code>, <code className="text-emerald-400">{"{{job_title}}"}</code>)
-                      </label>
+                      <label className="block text-slate-500 text-[11px] font-medium mb-1">Template Content</label>
                       <textarea
-                        rows={3}
-                        value={step.template_content}
+                        rows={2}
+                        value={st.template_content}
                         onChange={(e) => {
                           const updated = [...steps];
-                          updated[idx].template_content = e.target.value;
+                          updated[i].template_content = e.target.value;
                           setSteps(updated);
                         }}
-                        className="w-full bg-[#0f172a] border border-slate-700 rounded px-2.5 py-1.5 text-slate-200 font-mono"
+                        className="w-full bg-white border border-slate-200 rounded-lg p-2.5 text-xs text-slate-800 focus:outline-none focus:ring-1 focus:ring-slate-900 leading-relaxed"
                       />
                     </div>
                   </div>
                 ))}
               </div>
 
-              <div className="flex justify-end gap-2 pt-4 border-t border-slate-800">
+              <div className="flex justify-end gap-2.5 pt-4 border-t border-slate-100">
                 <button
                   type="button"
                   onClick={() => setShowModal(false)}
-                  className="px-3 py-1.5 border border-slate-800 rounded text-xs text-slate-400 hover:text-slate-200"
+                  className="px-4 py-2 border border-slate-200 rounded-lg text-sm font-semibold text-slate-600 hover:bg-slate-50 transition cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded text-xs font-semibold"
+                  className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-sm font-semibold transition cursor-pointer shadow-sm active:scale-95"
                 >
-                  Save Sequence
+                  Create Sequence
                 </button>
               </div>
             </form>
@@ -350,3 +357,5 @@ export const SequencesPage: React.FC = () => {
     </div>
   );
 };
+
+export default SequencesPage;

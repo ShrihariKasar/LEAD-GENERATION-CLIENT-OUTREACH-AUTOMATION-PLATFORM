@@ -7,7 +7,7 @@ import { ArrowRight, AlertCircle } from 'lucide-react';
 export const LoginPage: React.FC = () => {
   const { login } = useAuth();
   const navigate = useNavigate();
-  
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -28,67 +28,69 @@ export const LoginPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#090d16] flex flex-col justify-center items-center px-4">
+    <div className="min-h-screen bg-slate-50 flex flex-col justify-center items-center px-4 py-12">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <BrandLogo size={36} className="justify-center mb-3" />
-          <p className="text-xs text-slate-400 font-mono">
-            From first signal to booked conversation.
+          <BrandLogo size={42} className="justify-center mb-3" />
+          <p className="text-sm text-slate-500 font-medium">
+            From first signal to booked client conversation
           </p>
         </div>
 
-        <div className="bg-[#0f172a] border border-slate-800 rounded-lg p-6 shadow-xl">
+        <div className="bg-white border border-slate-200 rounded-2xl p-7 sm:p-8 shadow-sm">
           <div className="mb-6">
-            <h1 className="text-lg font-semibold text-slate-100">Sign in to Operations Console</h1>
-            <p className="text-xs text-slate-400 mt-1">Enter your credentials to access your workspace</p>
+            <h1 className="text-xl font-bold text-slate-900 tracking-tight">Sign in to Console</h1>
+            <p className="text-xs text-slate-500 mt-1 font-medium">Enter your credentials to access your workspace</p>
           </div>
 
           {error && (
-            <div className="mb-4 p-3 bg-rose-950/50 border border-rose-800/60 rounded text-xs text-rose-300 flex items-start gap-2">
-              <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5 text-rose-400" />
+            <div className="mb-4 p-3.5 bg-rose-50 border border-rose-200 rounded-lg text-xs font-medium text-rose-800 flex items-start gap-2">
+              <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5 text-rose-600" />
               <span>{error}</span>
             </div>
           )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-xs font-mono text-slate-400 mb-1">Work Email</label>
+              <label className="block text-xs font-semibold text-slate-700 mb-1.5">Work Email</label>
               <input
                 type="email"
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="name@company.com"
-                className="w-full bg-[#090d16] border border-slate-700 rounded px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-emerald-500 font-mono"
+                className="w-full bg-slate-50 focus:bg-white border border-slate-200 rounded-lg px-3.5 py-2.5 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-900 placeholder:text-slate-400 transition-all shadow-2xs"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-mono text-slate-400 mb-1">Password</label>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="block text-xs font-semibold text-slate-700">Password</label>
+              </div>
               <input
                 type="password"
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
-                className="w-full bg-[#090d16] border border-slate-700 rounded px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-emerald-500 font-mono"
+                className="w-full bg-slate-50 focus:bg-white border border-slate-200 rounded-lg px-3.5 py-2.5 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-900 placeholder:text-slate-400 transition-all shadow-2xs"
               />
             </div>
 
             <button
               type="submit"
               disabled={isSubmitting}
-              className="w-full py-2 px-4 bg-emerald-600 hover:bg-emerald-500 text-white rounded text-xs font-semibold flex items-center justify-center gap-2 transition disabled:opacity-50 mt-2 cursor-pointer"
+              className="w-full py-2.5 px-4 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-sm font-semibold flex items-center justify-center gap-2 transition active:scale-[0.99] shadow-sm disabled:opacity-50 mt-2 cursor-pointer"
             >
               {isSubmitting ? 'Authenticating...' : 'Sign In'}
-              <ArrowRight className="w-3.5 h-3.5" />
+              <ArrowRight className="w-4 h-4" />
             </button>
           </form>
 
-          <div className="mt-6 pt-4 border-t border-slate-800 text-center">
-            <p className="text-xs text-slate-400">
+          <div className="mt-6 pt-4 border-t border-slate-100 text-center">
+            <p className="text-xs text-slate-500 font-medium">
               Need a new workspace?{' '}
-              <Link to="/register" className="text-emerald-400 hover:underline font-medium">
+              <Link to="/register" className="text-blue-600 hover:text-blue-700 font-semibold underline underline-offset-2">
                 Create an account
               </Link>
             </p>
@@ -98,3 +100,5 @@ export const LoginPage: React.FC = () => {
     </div>
   );
 };
+
+export default LoginPage;

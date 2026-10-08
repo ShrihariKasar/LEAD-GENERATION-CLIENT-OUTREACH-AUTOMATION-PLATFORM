@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../../api/client';
 import { DashboardOverview } from '../../types';
+import { EmptyState } from '../../components/common/EmptyState';
 import {
   BarChart2, TrendingUp, Users, Send, CheckCircle2,
-  Calendar, ShieldCheck, Clock
+  Calendar, ShieldCheck, Clock, Sparkles
 } from 'lucide-react';
 
 export const AnalyticsPage: React.FC = () => {
@@ -19,8 +20,9 @@ export const AnalyticsPage: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="p-8 text-center text-xs text-slate-400 font-mono">
-        Aggregating operational analytics...
+      <div className="p-12 text-center text-sm font-medium text-slate-500 flex items-center justify-center gap-2">
+        <div className="w-4 h-4 border-2 border-slate-900 border-t-transparent rounded-full animate-spin" />
+        <span>Aggregating operational analytics benchmarks...</span>
       </div>
     );
   }
@@ -30,73 +32,81 @@ export const AnalyticsPage: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between border-b border-slate-800 pb-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 pb-5">
         <div>
-          <h1 className="text-lg font-semibold text-slate-100 font-mono tracking-tight">Revenue Operations Analytics</h1>
-          <p className="text-xs text-slate-400 mt-0.5">Database aggregated conversion benchmarks and channel response rates</p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight">
+            Revenue Operations Analytics
+          </h1>
+          <p className="text-sm text-slate-500 mt-1 font-medium">
+            Database-aggregated conversion funnels, response rates, and model safety metrics.
+          </p>
         </div>
       </div>
 
       {isEmpty ? (
-        <div className="bg-[#0f172a] border border-slate-800 rounded-lg p-10 text-center max-w-md mx-auto space-y-3 my-8">
-          <BarChart2 className="w-8 h-8 text-slate-500 mx-auto" />
-          <h2 className="text-sm font-semibold text-slate-200">No Analytics Data Yet</h2>
-          <p className="text-xs text-slate-400 font-mono">
-            Zero prospects or messages recorded in the database. All metrics are calculated live from real records.
-          </p>
-        </div>
+        <EmptyState
+          type="no-data"
+          icon={BarChart2}
+          title="No Analytics Data Yet"
+          description="Zero prospects or messages recorded in the database yet. All metrics are calculated live from real production records."
+        />
       ) : (
         <div className="space-y-6">
           {/* Top Conversion Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="bg-[#0f172a] border border-slate-800 rounded-lg p-4 space-y-1">
-              <span className="text-[10px] uppercase font-mono tracking-wider text-slate-500 font-semibold">Total Prospects</span>
-              <div className="text-2xl font-bold font-mono text-slate-100 tabular-nums">{data.total_leads}</div>
-              <div className="text-[11px] text-slate-400 font-mono">Across all sources</div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+            <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm space-y-1.5 hover:border-slate-300 transition">
+              <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">Total Prospects</span>
+              <div className="text-3xl font-bold text-slate-900 tabular-nums">{data.total_leads}</div>
+              <div className="text-xs text-slate-500 font-medium">Across all ingestion sources</div>
             </div>
 
-            <div className="bg-[#0f172a] border border-slate-800 rounded-lg p-4 space-y-1">
-              <span className="text-[10px] uppercase font-mono tracking-wider text-slate-500 font-semibold">Qualification Fit</span>
-              <div className="text-2xl font-bold font-mono text-emerald-400 tabular-nums">{data.qualification_rate}%</div>
-              <div className="text-[11px] text-slate-400 font-mono">Deterministic + AI evaluated</div>
+            <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm space-y-1.5 hover:border-slate-300 transition">
+              <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">Qualification Fit</span>
+              <div className="text-3xl font-bold text-emerald-700 tabular-nums">{data.qualification_rate}%</div>
+              <div className="text-xs text-slate-500 font-medium">Deterministic + AI evaluated</div>
             </div>
 
-            <div className="bg-[#0f172a] border border-slate-800 rounded-lg p-4 space-y-1">
-              <span className="text-[10px] uppercase font-mono tracking-wider text-slate-500 font-semibold">Reply Conversion</span>
-              <div className="text-2xl font-bold font-mono text-sky-400 tabular-nums">{data.response_rate}%</div>
-              <div className="text-[11px] text-slate-400 font-mono">{data.responses_received_count} total replies</div>
+            <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm space-y-1.5 hover:border-slate-300 transition">
+              <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">Reply Conversion</span>
+              <div className="text-3xl font-bold text-blue-700 tabular-nums">{data.response_rate}%</div>
+              <div className="text-xs text-slate-500 font-medium">{data.responses_received_count} total replies received</div>
             </div>
 
-            <div className="bg-[#0f172a] border border-slate-800 rounded-lg p-4 space-y-1">
-              <span className="text-[10px] uppercase font-mono tracking-wider text-slate-500 font-semibold">Meeting Conversion</span>
-              <div className="text-2xl font-bold font-mono text-indigo-400 tabular-nums">{data.meeting_conversion_rate}%</div>
-              <div className="text-[11px] text-slate-400 font-mono">From first signal to booked call</div>
+            <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm space-y-1.5 hover:border-slate-300 transition">
+              <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">Meeting Conversion</span>
+              <div className="text-3xl font-bold text-indigo-700 tabular-nums">{data.meeting_conversion_rate}%</div>
+              <div className="text-xs text-slate-500 font-medium">First signal to booked call</div>
             </div>
           </div>
 
           {/* AI Intelligence Health */}
-          <div className="bg-[#0f172a] border border-slate-800 rounded-lg p-5 space-y-4">
-            <h2 className="text-xs font-semibold text-slate-200 uppercase font-mono tracking-wider">
-              AI Decisioning & Safety Metrics
-            </h2>
+          <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm space-y-4">
+            <div>
+              <h2 className="text-base font-bold text-slate-900">
+                AI Decisioning & Model Safety Metrics
+              </h2>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Evaluated precision, intent classification certainty, and human intervention thresholds
+              </p>
+            </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="p-3 bg-[#090d16] border border-slate-800 rounded space-y-1">
-                <span className="text-[10px] text-slate-400 font-mono uppercase">AI Dialogue Turns</span>
-                <div className="text-xl font-bold font-mono text-slate-100">{data.ai_conversations_count}</div>
-                <div className="text-[11px] text-slate-400 font-mono">Grounded turns executed</div>
+              <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-1">
+                <span className="text-xs text-slate-500 font-semibold uppercase tracking-wider">AI Dialogue Turns</span>
+                <div className="text-2xl font-bold text-slate-900 tabular-nums">{data.ai_conversations_count}</div>
+                <div className="text-xs text-slate-500 font-medium">Grounded turns executed</div>
               </div>
 
-              <div className="p-3 bg-[#090d16] border border-slate-800 rounded space-y-1">
-                <span className="text-[10px] text-slate-400 font-mono uppercase">Avg Model Confidence</span>
-                <div className="text-xl font-bold font-mono text-emerald-400">{Math.round(data.average_ai_confidence * 100)}%</div>
-                <div className="text-[11px] text-slate-400 font-mono">Intent & qualification certainty</div>
+              <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-1">
+                <span className="text-xs text-slate-500 font-semibold uppercase tracking-wider">Avg Model Confidence</span>
+                <div className="text-2xl font-bold text-emerald-700 tabular-nums">{Math.round(data.average_ai_confidence * 100)}%</div>
+                <div className="text-xs text-slate-500 font-medium">Intent & qualification certainty</div>
               </div>
 
-              <div className="p-3 bg-[#090d16] border border-slate-800 rounded space-y-1">
-                <span className="text-[10px] text-slate-400 font-mono uppercase">Human Handoffs</span>
-                <div className="text-xl font-bold font-mono text-amber-400">{data.human_handoff_count}</div>
-                <div className="text-[11px] text-slate-400 font-mono">Cases requiring human oversight</div>
+              <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-1">
+                <span className="text-xs text-slate-500 font-semibold uppercase tracking-wider">Human Handoffs</span>
+                <div className="text-2xl font-bold text-amber-700 tabular-nums">{data.human_handoff_count}</div>
+                <div className="text-xs text-slate-500 font-medium">Cases triaged to human oversight</div>
               </div>
             </div>
           </div>
@@ -105,3 +115,5 @@ export const AnalyticsPage: React.FC = () => {
     </div>
   );
 };
+
+export default AnalyticsPage;

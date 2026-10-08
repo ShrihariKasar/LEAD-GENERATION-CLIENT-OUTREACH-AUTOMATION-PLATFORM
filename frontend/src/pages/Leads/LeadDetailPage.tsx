@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { api } from '../../api/client';
 import { Lead, DecisionTrace, Conversation, Message, LeadEnrichment } from '../../types';
 import { StatusBadge } from '../../components/common/StatusBadge';
+import { useToast } from '../../components/common/Toast';
 import {
   ArrowLeft, Sparkles, Building, Mail, Phone, Send, CheckCircle2,
   AlertTriangle, Copy, Check, MessageSquare, ExternalLink, RefreshCw,
@@ -12,6 +13,7 @@ import {
 export const LeadDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { addToast } = useToast();
 
   const [lead, setLead] = useState<Lead | null>(null);
   const [decisionTrace, setDecisionTrace] = useState<DecisionTrace | null>(null);
@@ -44,8 +46,8 @@ export const LeadDetailPage: React.FC = () => {
         const fullConv = await api.getConversation(leadConv.id);
         setConversation(fullConv);
       }
-    } catch {
-      //
+    } catch (err: any) {
+      console.error(err);
     } finally {
       setLoading(false);
     }
@@ -63,8 +65,9 @@ export const LeadDetailPage: React.FC = () => {
       setLead(updated);
       const trace = await api.getDecisionTrace(id).catch(() => null);
       setDecisionTrace(trace);
+      addToast('Prospect enriched with latest intelligence.');
     } catch {
-      //
+      addToast('Enrichment failed', 'error');
     } finally {
       setIsEnriching(false);
     }
@@ -79,8 +82,9 @@ export const LeadDetailPage: React.FC = () => {
       setNewMessage('');
       const updatedConv = await api.getConversation(conversation.id);
       setConversation(updatedConv);
+      addToast('Message sent to prospect.');
     } catch {
-      //
+      addToast('Failed to send message', 'error');
     } finally {
       setIsSending(false);
     }
@@ -92,12 +96,14 @@ export const LeadDetailPage: React.FC = () => {
       if (conversation.ai_paused) {
         const res = await api.resumeAI(conversation.id);
         setConversation(res);
+        addToast('Autonomous AI handling resumed.');
       } else {
         const res = await api.takeoverConversation(conversation.id);
         setConversation(res);
+        addToast('Manual human takeover active.');
       }
     } catch {
-      //
+      addToast('Failed to update conversation control', 'error');
     }
   };
 
@@ -105,208 +111,223 @@ export const LeadDetailPage: React.FC = () => {
     if (telegramLink?.opt_in_link) {
       navigator.clipboard.writeText(telegramLink.opt_in_link);
       setCopiedLink(true);
+      addToast('Telegram link copied to clipboard.');
       setTimeout(() => setCopiedLink(false), 2000);
     }
   };
 
   if (loading) {
     return (
-      <div className="p-8 text-center font-mono text-xs text-slate-400">
-        Loading lead investigation workspace...
+      <div className="p-12 text-center text-sm font-medium text-slate-500 flex items-center justify-center gap-2">
+        <div className="w-4 h-4 border-2 border-slate-900 border-t-transparent rounded-full animate-spin" />
+        <span>Loading lead investigation dossier...</span>
       </div>
     );
   }
 
   if (!lead) {
     return (
-      <div className="p-8 text-center text-xs text-slate-400 font-mono space-y-3">
-        <div>Lead not found or has been removed.</div>
+      <div className="bg-white border border-slate-200 rounded-xl p-12 text-center max-w-md mx-auto space-y-4 shadow-sm my-8">
+        <div className="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center mx-auto text-slate-500">
+          <AlertTriangle className="w-6 h-6" />
+        </div>
+        <h3 className="text-lg font-bold text-slate-900">Prospect not found</h3>
+        <p className="text-sm text-slate-500">This record may have been removed or deleted.</p>
         <button
           onClick={() => navigate('/leads')}
-          className="px-3 py-1.5 bg-slate-800 rounded text-slate-200"
+          className="inline-flex items-center gap-2 px-4 py-2 bg-slate-900 text-white rounded-lg text-sm font-semibold hover:bg-slate-800 transition"
         >
-          Back to Lead Pool
+          <ArrowLeft className="w-4 h-4" />
+          <span>Back to Lead Pool</span>
         </button>
       </div>
     );
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       {/* Top Breadcrumb & Status Bar */}
-      <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-        <div className="flex items-center gap-3">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 pb-5">
+        <div className="flex items-center gap-3.5">
           <button
             onClick={() => navigate('/leads')}
-            className="p-1 text-slate-400 hover:text-slate-200 rounded hover:bg-slate-800"
+            className="p-2 text-slate-500 hover:text-slate-900 rounded-lg hover:bg-slate-100 transition border border-slate-200/80 cursor-pointer"
+            title="Back to Leads"
           >
             <ArrowLeft className="w-4 h-4" />
           </button>
           <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-base font-semibold text-slate-100 font-mono">
+            <div className="flex items-center gap-2.5 flex-wrap">
+              <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
                 {lead.full_name || 'Unnamed Prospect'}
               </h1>
               <StatusBadge status={lead.qualification_status} />
               <StatusBadge status={lead.lead_status} />
             </div>
-            <div className="text-xs text-slate-400 font-mono">
+            <p className="text-sm text-slate-500 mt-0.5 font-medium">
               {lead.job_title || 'No Title'} • {lead.company_name || 'No Company'}
-            </div>
+            </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2.5">
           <button
             onClick={handleEnrich}
             disabled={isEnriching}
-            className="px-3 py-1.5 bg-[#0f172a] hover:bg-slate-800 border border-slate-700 rounded text-xs font-mono text-slate-200 flex items-center gap-1.5 disabled:opacity-50 cursor-pointer"
+            className="inline-flex items-center gap-2 px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-sm font-semibold shadow-sm transition active:scale-95 disabled:opacity-50 cursor-pointer"
           >
-            <RefreshCw className={`w-3.5 h-3.5 text-emerald-400 ${isEnriching ? 'animate-spin' : ''}`} />
-            {isEnriching ? 'Enriching...' : 'Enrich Lead'}
+            <RefreshCw className={`w-4 h-4 ${isEnriching ? 'animate-spin' : ''}`} />
+            <span>{isEnriching ? 'Enriching...' : 'Enrich Prospect'}</span>
           </button>
         </div>
       </div>
 
       {/* 3-Column Operations Layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-        {/* Left Column: Identity & Company Profile (3 cols) */}
-        <div className="lg:col-span-4 space-y-4">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+        {/* Left Column: Profile & Company (4 cols) */}
+        <div className="lg:col-span-4 space-y-5">
           {/* Identity Card */}
-          <div className="bg-[#0f172a] border border-slate-800 rounded-lg p-4 space-y-3">
-            <h2 className="text-xs font-semibold text-slate-300 uppercase font-mono tracking-wider">
+          <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm space-y-3.5">
+            <h2 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
               Prospect Profile
             </h2>
 
-            <div className="space-y-2 text-xs">
-              <div className="flex justify-between py-1 border-b border-slate-800/80">
-                <span className="text-slate-400 font-mono">Email</span>
-                <span className="text-slate-200 font-mono select-all">{lead.email || '—'}</span>
+            <div className="space-y-2.5 text-sm">
+              <div className="flex justify-between py-1.5 border-b border-slate-100">
+                <span className="text-slate-500 font-medium text-xs">Email</span>
+                <span className="text-slate-900 font-semibold select-all text-xs">{lead.email || '—'}</span>
               </div>
-              <div className="flex justify-between py-1 border-b border-slate-800/80">
-                <span className="text-slate-400 font-mono">Email Deliverability</span>
+              <div className="flex justify-between py-1.5 border-b border-slate-100">
+                <span className="text-slate-500 font-medium text-xs">Deliverability</span>
                 <StatusBadge status={lead.email_status} size="sm" />
               </div>
-              <div className="flex justify-between py-1 border-b border-slate-800/80">
-                <span className="text-slate-400 font-mono">Seniority</span>
-                <span className="text-slate-200">{lead.seniority || '—'}</span>
+              <div className="flex justify-between py-1.5 border-b border-slate-100">
+                <span className="text-slate-500 font-medium text-xs">Seniority</span>
+                <span className="text-slate-900 font-medium text-xs">{lead.seniority || '—'}</span>
               </div>
-              <div className="flex justify-between py-1 border-b border-slate-800/80">
-                <span className="text-slate-400 font-mono">Location</span>
-                <span className="text-slate-200">{lead.location || lead.country || '—'}</span>
+              <div className="flex justify-between py-1.5 border-b border-slate-100">
+                <span className="text-slate-500 font-medium text-xs">Location</span>
+                <span className="text-slate-900 font-medium text-xs">{lead.location || lead.country || '—'}</span>
               </div>
-              <div className="flex justify-between py-1 border-b border-slate-800/80">
-                <span className="text-slate-400 font-mono">Lead Source</span>
-                <span className="text-slate-200 font-mono uppercase text-[11px]">{lead.source}</span>
+              <div className="flex justify-between py-1.5 border-b border-slate-100">
+                <span className="text-slate-500 font-medium text-xs">Lead Source</span>
+                <span className="text-slate-700 font-semibold uppercase text-[11px] bg-slate-100 px-2 py-0.5 rounded">
+                  {lead.source}
+                </span>
               </div>
             </div>
           </div>
 
           {/* Company Profile Card */}
-          <div className="bg-[#0f172a] border border-slate-800 rounded-lg p-4 space-y-3">
-            <h2 className="text-xs font-semibold text-slate-300 uppercase font-mono tracking-wider flex items-center gap-1.5">
-              <Building className="w-3.5 h-3.5 text-slate-400" />
+          <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm space-y-3.5">
+            <h2 className="text-xs font-semibold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
+              <Building className="w-4 h-4 text-slate-400" />
               Company Intelligence
             </h2>
 
-            <div className="space-y-2 text-xs">
-              <div className="flex justify-between py-1 border-b border-slate-800/80">
-                <span className="text-slate-400 font-mono">Company</span>
-                <span className="text-slate-200 font-medium">{lead.company_name || '—'}</span>
+            <div className="space-y-2.5 text-sm">
+              <div className="flex justify-between py-1.5 border-b border-slate-100">
+                <span className="text-slate-500 font-medium text-xs">Company</span>
+                <span className="text-slate-900 font-semibold text-xs">{lead.company_name || '—'}</span>
               </div>
-              <div className="flex justify-between py-1 border-b border-slate-800/80">
-                <span className="text-slate-400 font-mono">Domain</span>
-                <span className="text-slate-200 font-mono">{lead.company_domain || '—'}</span>
+              <div className="flex justify-between py-1.5 border-b border-slate-100">
+                <span className="text-slate-500 font-medium text-xs">Domain</span>
+                <span className="text-slate-900 text-xs font-medium">{lead.company_domain || '—'}</span>
               </div>
-              <div className="flex justify-between py-1 border-b border-slate-800/80">
-                <span className="text-slate-400 font-mono">Industry</span>
-                <span className="text-slate-200">{lead.industry || '—'}</span>
+              <div className="flex justify-between py-1.5 border-b border-slate-100">
+                <span className="text-slate-500 font-medium text-xs">Industry</span>
+                <span className="text-slate-900 text-xs font-medium">{lead.industry || '—'}</span>
               </div>
-              <div className="flex justify-between py-1 border-b border-slate-800/80">
-                <span className="text-slate-400 font-mono">Headcount</span>
-                <span className="text-slate-200 font-mono">{lead.employee_count ? `${lead.employee_count} employees` : '—'}</span>
+              <div className="flex justify-between py-1.5 border-b border-slate-100">
+                <span className="text-slate-500 font-medium text-xs">Headcount</span>
+                <span className="text-slate-900 text-xs font-medium">
+                  {lead.employee_count ? `${lead.employee_count} employees` : '—'}
+                </span>
               </div>
             </div>
           </div>
 
-          {/* Telegram Opt-In Deep Link Card */}
-          <div className="bg-[#0f172a] border border-slate-800 rounded-lg p-4 space-y-2.5">
+          {/* Telegram Deep Link Card */}
+          <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm space-y-3">
             <div className="flex items-center justify-between">
-              <h2 className="text-xs font-semibold text-slate-300 uppercase font-mono tracking-wider">
+              <h2 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
                 Telegram Channel Opt-In
               </h2>
               <StatusBadge status={lead.telegram_opt_in_status} size="sm" />
             </div>
 
-            <p className="text-[11px] text-slate-400">
-              Telegram bot policies require prospects to initiate the conversation first. Send this tracking link to the prospect:
+            <p className="text-xs text-slate-500 leading-relaxed">
+              Bot compliance requires prospects to initiate the session. Share this verified tracking link:
             </p>
 
-            <div className="flex items-center gap-1.5 bg-[#090d16] border border-slate-800 rounded p-1.5">
+            <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-lg p-2">
               <input
                 type="text"
                 readOnly
                 value={telegramLink?.opt_in_link || 'Generating...'}
-                className="w-full bg-transparent text-[11px] text-slate-300 font-mono focus:outline-none truncate"
+                className="w-full bg-transparent text-xs text-slate-800 focus:outline-none truncate font-medium"
               />
               <button
                 onClick={copyOptInLink}
-                className="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded text-[11px] font-mono flex items-center gap-1 flex-shrink-0"
+                className="px-2.5 py-1 bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 rounded-md text-xs font-semibold flex items-center gap-1 shrink-0 transition shadow-2xs cursor-pointer"
               >
-                {copiedLink ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
-                {copiedLink ? 'Copied' : 'Copy'}
+                {copiedLink ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+                <span>{copiedLink ? 'Copied' : 'Copy'}</span>
               </button>
             </div>
           </div>
         </div>
 
-        {/* Center Column: Conversation & Timeline (4 cols) */}
+        {/* Center Column: Conversation Timeline (4 cols) */}
         <div className="lg:col-span-4 space-y-4">
-          <div className="bg-[#0f172a] border border-slate-800 rounded-lg flex flex-col h-[560px]">
+          <div className="bg-white border border-slate-200 rounded-xl flex flex-col h-[600px] shadow-sm overflow-hidden">
             {/* Inbox Header */}
-            <div className="p-3 border-b border-slate-800 flex items-center justify-between bg-[#090d16]/50">
+            <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/70">
               <div className="flex items-center gap-2">
-                <MessageSquare className="w-4 h-4 text-emerald-400" />
-                <span className="text-xs font-semibold text-slate-200 font-mono">Conversation Timeline</span>
+                <MessageSquare className="w-4 h-4 text-blue-600" />
+                <span className="text-sm font-bold text-slate-900">Conversation Timeline</span>
               </div>
               {conversation && (
                 <button
                   onClick={handleTakeover}
-                  className={`px-2 py-0.5 rounded text-[11px] font-mono border ${
+                  className={`px-2.5 py-1 rounded-md text-xs font-semibold border transition cursor-pointer ${
                     conversation.ai_paused
-                      ? 'bg-amber-950/60 text-amber-300 border-amber-800/60'
-                      : 'bg-emerald-950/60 text-emerald-300 border-emerald-800/60'
+                      ? 'bg-amber-50 text-amber-800 border-amber-200'
+                      : 'bg-emerald-50 text-emerald-700 border-emerald-200'
                   }`}
                 >
-                  {conversation.ai_paused ? 'AI Paused (Human Active)' : 'AI Active'}
+                  {conversation.ai_paused ? 'AI Paused (Human)' : 'AI Autonomous'}
                 </button>
               )}
             </div>
 
             {/* Message Stream */}
-            <div className="flex-1 p-3 overflow-y-auto space-y-2.5 font-mono text-xs">
+            <div className="flex-1 p-4 overflow-y-auto space-y-3 bg-slate-50/40 text-xs">
               {!conversation || conversation.messages.length === 0 ? (
-                <div className="h-full flex flex-col items-center justify-center text-center p-4 text-slate-400 space-y-2">
-                  <div className="text-[11px]">No messages exchanged with this prospect yet.</div>
-                  <div className="text-[10px] text-slate-400">
-                    Outbound messages from active sequences or manual replies will appear here.
+                <div className="h-full flex flex-col items-center justify-center text-center p-6 text-slate-400 space-y-2">
+                  <MessageSquare className="w-8 h-8 text-slate-300" />
+                  <div className="text-sm font-semibold text-slate-600">No messages yet</div>
+                  <div className="text-xs text-slate-400 max-w-xs">
+                    Autonomous sequence steps and inbound replies will appear chronologically here.
                   </div>
                 </div>
               ) : (
                 conversation.messages.map((m) => (
                   <div
                     key={m.id}
-                    className={`p-2.5 rounded-lg max-w-[85%] space-y-1 ${
+                    className={`p-3 rounded-xl max-w-[85%] space-y-1 shadow-2xs ${
                       m.direction === 'INBOUND'
-                        ? 'bg-slate-800/90 text-slate-200 mr-auto border border-slate-700/60'
-                        : 'bg-emerald-950/70 text-emerald-100 ml-auto border border-emerald-800/50'
+                        ? 'bg-white text-slate-800 mr-auto border border-slate-200 rounded-bl-none'
+                        : 'bg-slate-900 text-white ml-auto rounded-br-none'
                     }`}
                   >
-                    <div className="flex items-center justify-between text-[10px] text-slate-400">
+                    <div className="flex items-center justify-between text-[11px] gap-3 pb-1 border-b border-black/10">
                       <span className="font-semibold">
                         {m.direction === 'INBOUND' ? (lead.full_name || 'Prospect') : `${m.sender_type} (${m.channel})`}
                       </span>
-                      <span>{new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                      <span className="text-[10px] opacity-75">
+                        {new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </span>
                     </div>
                     <div className="text-xs leading-relaxed break-words">{m.content}</div>
                   </div>
@@ -315,18 +336,18 @@ export const LeadDetailPage: React.FC = () => {
             </div>
 
             {/* Composer */}
-            <form onSubmit={handleSendMessage} className="p-2 border-t border-slate-800 bg-[#090d16]/80 flex gap-2">
+            <form onSubmit={handleSendMessage} className="p-3 border-t border-slate-200 bg-white flex gap-2">
               <input
                 type="text"
                 value={newMessage}
                 onChange={(e) => setNewMessage(e.target.value)}
-                placeholder="Type a message to send to prospect..."
-                className="flex-1 bg-[#0f172a] border border-slate-700 text-xs text-slate-200 px-3 py-1.5 rounded focus:outline-none focus:border-slate-500 font-mono"
+                placeholder="Type a message to prospect..."
+                className="flex-1 bg-slate-50 focus:bg-white border border-slate-200 text-sm text-slate-900 px-3.5 py-2 rounded-lg focus:outline-none focus:ring-1 focus:ring-slate-900 transition"
               />
               <button
                 type="submit"
                 disabled={!newMessage.trim() || isSending}
-                className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded text-xs font-semibold disabled:opacity-50 flex items-center gap-1 cursor-pointer"
+                className="px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-sm font-semibold disabled:opacity-40 flex items-center gap-1 cursor-pointer transition active:scale-95 shadow-sm"
               >
                 <Send className="w-3.5 h-3.5" />
               </button>
@@ -334,62 +355,61 @@ export const LeadDetailPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Right Column: AI Intelligence, Decision Trace & Next Best Action (4 cols) */}
-        <div className="lg:col-span-4 space-y-4">
-          {/* SIGNATURE UX ELEMENT 2: NEXT BEST ACTION */}
-          <div className="bg-[#0f172a] border border-emerald-800/40 rounded-lg p-4 space-y-2 relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500/5 rounded-full blur-xl pointer-events-none" />
+        {/* Right Column: AI Intelligence & Decision Trace (4 cols) */}
+        <div className="lg:col-span-4 space-y-5">
+          {/* Next Best Action Card */}
+          <div className="bg-blue-50/70 border border-blue-200 rounded-xl p-5 shadow-sm space-y-2 relative overflow-hidden">
             <div className="flex items-center justify-between">
-              <div className="text-[10px] uppercase font-mono tracking-wider text-emerald-400 font-bold flex items-center gap-1.5">
-                <Sparkles className="w-3.5 h-3.5" />
+              <div className="text-xs uppercase tracking-wider text-blue-700 font-bold flex items-center gap-1.5">
+                <Sparkles className="w-4 h-4 text-blue-600" />
                 Next Best Action
               </div>
-              <span className="text-[10px] font-mono text-slate-400 bg-slate-900 px-1.5 py-0.5 rounded border border-slate-800">
-                Ground Truth
+              <span className="text-[10px] font-semibold text-blue-800 bg-blue-100 px-2 py-0.5 rounded-full border border-blue-200">
+                Grounded
               </span>
             </div>
 
-            <div className="text-xs font-medium text-slate-100 leading-snug">
+            <p className="text-sm font-medium text-slate-800 leading-snug">
               {lead.next_best_action || decisionTrace?.recommendation || 'Enrich contact data or enroll prospect into active outreach sequence.'}
-            </div>
+            </p>
           </div>
 
-          {/* SIGNATURE UX ELEMENT 1: DECISION TRACE */}
-          <div className="bg-[#0f172a] border border-slate-800 rounded-lg p-4 space-y-3">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-2">
-              <div className="text-xs font-semibold text-slate-200 uppercase font-mono tracking-wider flex items-center gap-1.5">
-                <Shield className="w-3.5 h-3.5 text-emerald-400" />
-                Decision Trace
+          {/* Decision Trace Card */}
+          <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm space-y-3.5">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
+                <Shield className="w-4 h-4 text-slate-400" />
+                ICP Decision Trace
               </div>
               {decisionTrace?.overall_score !== undefined && (
-                <span className="font-mono text-xs font-bold text-emerald-400 bg-emerald-950/60 px-2 py-0.5 rounded border border-emerald-900/60">
+                <span className="text-xs font-bold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">
                   {decisionTrace.overall_score}% Fit
                 </span>
               )}
             </div>
 
             {!decisionTrace ? (
-              <div className="text-xs text-slate-400 font-mono py-2">
+              <div className="text-xs text-slate-500 py-3 text-center">
                 Evaluating criteria fit against ICP...
               </div>
             ) : (
-              <div className="space-y-2.5">
-                <div className="space-y-2">
+              <div className="space-y-3">
+                <div className="space-y-2.5">
                   {decisionTrace.items.map((item, idx) => (
-                    <div key={idx} className="flex items-start gap-2 text-xs">
+                    <div key={idx} className="flex items-start gap-2.5 text-xs bg-slate-50 p-2.5 rounded-lg border border-slate-100">
                       {item.status === 'MATCHED' ? (
-                        <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0 mt-0.5" />
+                        <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
                       ) : item.status === 'FAILED' ? (
-                        <XCircle className="w-4 h-4 text-rose-400 flex-shrink-0 mt-0.5" />
+                        <XCircle className="w-4 h-4 text-rose-500 shrink-0 mt-0.5" />
                       ) : (
-                        <HelpCircle className="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5" />
+                        <HelpCircle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
                       )}
                       <div>
-                        <div className="text-slate-200 font-medium font-mono text-[11px]">
+                        <div className="text-slate-900 font-semibold text-xs">
                           {item.label}
                         </div>
                         {item.details && (
-                          <div className="text-slate-400 text-[11px] font-mono leading-tight">
+                          <div className="text-slate-500 text-xs mt-0.5 leading-snug font-medium">
                             {item.details}
                           </div>
                         )}
@@ -398,7 +418,7 @@ export const LeadDetailPage: React.FC = () => {
                   ))}
                 </div>
 
-                <div className="pt-2 border-t border-slate-800/80 text-[11px] text-slate-400 font-mono whitespace-pre-line leading-relaxed">
+                <div className="pt-3 border-t border-slate-100 text-xs text-slate-600 leading-relaxed whitespace-pre-line bg-slate-50/60 p-3 rounded-lg">
                   {decisionTrace.explanation}
                 </div>
               </div>
@@ -409,3 +429,5 @@ export const LeadDetailPage: React.FC = () => {
     </div>
   );
 };
+
+export default LeadDetailPage;

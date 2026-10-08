@@ -1,15 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../../api/client';
 import { Workspace } from '../../types';
+import { useToast } from '../../components/common/Toast';
 import {
   Settings as SettingsIcon, Shield, Users, Save, Check,
   AlertTriangle, Clock, Building
 } from 'lucide-react';
 
 export const SettingsPage: React.FC = () => {
+  const { addToast } = useToast();
   const [workspace, setWorkspace] = useState<Workspace | null>(null);
   const [loading, setLoading] = useState(true);
-  const [savedSuccess, setSavedSuccess] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   // Form states
   const [companyName, setCompanyName] = useState('');
@@ -41,7 +43,7 @@ export const SettingsPage: React.FC = () => {
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    setSavedSuccess(false);
+    setIsSaving(true);
     try {
       const keywords = optOutKeywords.split(',').map((k) => k.trim().toLowerCase()).filter(Boolean);
       await api.updateWorkspace({
@@ -57,145 +59,157 @@ export const SettingsPage: React.FC = () => {
           opt_out_keywords: keywords
         }
       });
-      setSavedSuccess(true);
-      setTimeout(() => setSavedSuccess(false), 3000);
-    } catch {
-      //
+      addToast('Workspace settings saved successfully.');
+    } catch (err: any) {
+      addToast(err.message || 'Failed to update settings', 'error');
+    } finally {
+      setIsSaving(false);
     }
   };
 
   if (loading) {
-    return <div className="p-8 text-center text-xs text-slate-400 font-mono">Loading workspace settings...</div>;
+    return (
+      <div className="p-12 text-center text-sm font-medium text-slate-500 flex items-center justify-center gap-2">
+        <div className="w-4 h-4 border-2 border-slate-900 border-t-transparent rounded-full animate-spin" />
+        <span>Loading workspace configuration...</span>
+      </div>
+    );
   }
 
   return (
     <div className="max-w-4xl space-y-6">
-      <div className="flex items-center justify-between border-b border-slate-800 pb-4">
+      <div className="flex items-center justify-between border-b border-slate-200 pb-5">
         <div>
-          <h1 className="text-lg font-semibold text-slate-100 font-mono tracking-tight">Workspace & Operational Safety Settings</h1>
-          <p className="text-xs text-slate-400 mt-0.5">Manage company product positioning and outreach safety policies</p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight">
+            Workspace & Compliance Settings
+          </h1>
+          <p className="text-sm text-slate-500 mt-1 font-medium">
+            Manage company value proposition context, cadence caps, and outreach safety guardrails.
+          </p>
         </div>
       </div>
 
       <form onSubmit={handleSave} className="space-y-6">
         {/* Company Identity */}
-        <div className="bg-[#0f172a] border border-slate-800 rounded-lg p-5 space-y-4">
-          <div className="flex items-center gap-2 border-b border-slate-800 pb-2.5">
-            <Building className="w-4 h-4 text-emerald-400" />
-            <h2 className="text-xs font-semibold text-slate-200 uppercase font-mono tracking-wider">
+        <div className="bg-white border border-slate-200 rounded-xl p-6 space-y-4 shadow-sm">
+          <div className="flex items-center gap-2.5 border-b border-slate-100 pb-3">
+            <Building className="w-5 h-5 text-slate-400" />
+            <h2 className="text-base font-bold text-slate-900">
               Company Context & Value Proposition
             </h2>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs font-mono">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
             <div>
-              <label className="block text-slate-400 mb-1">Company Name</label>
+              <label className="block text-xs font-semibold text-slate-700 mb-1.5">Company Name</label>
               <input
                 type="text"
                 value={companyName}
                 onChange={(e) => setCompanyName(e.target.value)}
-                className="w-full bg-[#090d16] border border-slate-700 rounded px-3 py-1.5 text-slate-200"
+                className="w-full bg-slate-50 focus:bg-white border border-slate-200 rounded-lg px-3.5 py-2.5 text-sm text-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-900 transition"
               />
             </div>
 
             <div>
-              <label className="block text-slate-400 mb-1">Website URL</label>
+              <label className="block text-xs font-semibold text-slate-700 mb-1.5">Website URL</label>
               <input
                 type="text"
                 value={website}
                 onChange={(e) => setWebsite(e.target.value)}
                 placeholder="https://company.com"
-                className="w-full bg-[#090d16] border border-slate-700 rounded px-3 py-1.5 text-slate-200"
+                className="w-full bg-slate-50 focus:bg-white border border-slate-200 rounded-lg px-3.5 py-2.5 text-sm text-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-900 transition"
               />
             </div>
 
             <div className="md:col-span-2">
-              <label className="block text-slate-400 mb-1">Product Description (Grounding context for AI outreach)</label>
+              <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                Product Description (Grounding context for AI outreach generation)
+              </label>
               <textarea
                 rows={3}
                 value={productDesc}
                 onChange={(e) => setProductDesc(e.target.value)}
-                className="w-full bg-[#090d16] border border-slate-700 rounded px-3 py-1.5 text-slate-200"
+                placeholder="Briefly describe what your product does, key differentiators, and value provided..."
+                className="w-full bg-slate-50 focus:bg-white border border-slate-200 rounded-lg px-3.5 py-2.5 text-sm text-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-900 transition leading-relaxed"
               />
             </div>
           </div>
         </div>
 
         {/* Outreach Safety Policies */}
-        <div className="bg-[#0f172a] border border-slate-800 rounded-lg p-5 space-y-4">
-          <div className="flex items-center gap-2 border-b border-slate-800 pb-2.5">
-            <Shield className="w-4 h-4 text-emerald-400" />
-            <h2 className="text-xs font-semibold text-slate-200 uppercase font-mono tracking-wider">
+        <div className="bg-white border border-slate-200 rounded-xl p-6 space-y-4 shadow-sm">
+          <div className="flex items-center gap-2.5 border-b border-slate-100 pb-3">
+            <Shield className="w-5 h-5 text-emerald-600" />
+            <h2 className="text-base font-bold text-slate-900">
               Outreach Safety & Compliance Guardrails
             </h2>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs font-mono">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
             <div>
-              <label className="block text-slate-400 mb-1">Daily Sending Cap (Messages/Day)</label>
+              <label className="block text-xs font-semibold text-slate-700 mb-1.5">Daily Sending Cap (Messages/Day)</label>
               <input
                 type="number"
                 min="1"
                 max="500"
                 value={maxDailyOutreach}
                 onChange={(e) => setMaxDailyOutreach(Number(e.target.value))}
-                className="w-full bg-[#090d16] border border-slate-700 rounded px-3 py-1.5 text-slate-200"
+                className="w-full bg-slate-50 focus:bg-white border border-slate-200 rounded-lg px-3.5 py-2.5 text-sm text-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-900 transition"
               />
             </div>
 
             <div>
-              <label className="block text-slate-400 mb-1">Max Follow-ups per Prospect</label>
+              <label className="block text-xs font-semibold text-slate-700 mb-1.5">Max Follow-ups per Prospect</label>
               <input
                 type="number"
                 min="1"
                 max="10"
                 value={maxFollowUps}
                 onChange={(e) => setMaxFollowUps(Number(e.target.value))}
-                className="w-full bg-[#090d16] border border-slate-700 rounded px-3 py-1.5 text-slate-200"
+                className="w-full bg-slate-50 focus:bg-white border border-slate-200 rounded-lg px-3.5 py-2.5 text-sm text-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-900 transition"
               />
             </div>
 
-            <div className="md:col-span-2">
-              <label className="flex items-center gap-2 cursor-pointer text-slate-300">
+            <div className="md:col-span-2 pt-1">
+              <label className="flex items-center gap-2.5 cursor-pointer text-slate-800 font-medium">
                 <input
                   type="checkbox"
                   checked={quietHoursEnabled}
                   onChange={(e) => setQuietHoursEnabled(e.target.checked)}
-                  className="rounded bg-slate-900 border-slate-700 text-emerald-500"
+                  className="rounded border-slate-300 text-slate-900 focus:ring-slate-900 w-4 h-4"
                 />
-                <span>Enforce Quiet Hours (20:00 - 08:00 local time) — Automations pause overnight</span>
+                <span className="text-sm">Enforce Quiet Hours (20:00 - 08:00 local time) — Automations pause overnight</span>
               </label>
             </div>
 
             <div className="md:col-span-2">
-              <label className="block text-slate-400 mb-1">Opt-Out Detection Keywords (triggers instant DNC status)</label>
+              <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                Opt-Out Detection Keywords (triggers instant Do Not Contact status)
+              </label>
               <input
                 type="text"
                 value={optOutKeywords}
                 onChange={(e) => setOptOutKeywords(e.target.value)}
-                className="w-full bg-[#090d16] border border-slate-700 rounded px-3 py-1.5 text-slate-200 font-mono"
+                className="w-full bg-slate-50 focus:bg-white border border-slate-200 rounded-lg px-3.5 py-2.5 text-sm text-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-900 transition font-mono"
               />
             </div>
           </div>
         </div>
 
         {/* Submit */}
-        <div className="flex items-center justify-between">
-          {savedSuccess && (
-            <span className="text-xs font-mono text-emerald-400 flex items-center gap-1.5">
-              <Check className="w-4 h-4" />
-              Settings updated successfully.
-            </span>
-          )}
+        <div className="flex items-center justify-end">
           <button
             type="submit"
-            className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded text-xs font-semibold flex items-center gap-1.5 ml-auto cursor-pointer"
+            disabled={isSaving}
+            className="px-5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-sm font-semibold flex items-center gap-2 cursor-pointer shadow-sm transition active:scale-95 disabled:opacity-40"
           >
-            <Save className="w-3.5 h-3.5" />
-            Save Workspace Settings
+            <Save className="w-4 h-4" />
+            <span>{isSaving ? 'Saving...' : 'Save Workspace Settings'}</span>
           </button>
         </div>
       </form>
     </div>
   );
 };
+
+export default SettingsPage;

@@ -6,99 +6,79 @@ interface StatusBadgeProps {
   size?: 'sm' | 'md';
 }
 
-export const StatusBadge: React.FC<StatusBadgeProps> = ({ status, type = 'lead', size = 'sm' }) => {
-  const normalized = (status || 'UNKNOWN').toUpperCase();
+interface BadgeStyle {
+  bg: string;
+  dot: string;
+  label: string;
+}
 
-  let bgClass = "bg-slate-800/80 text-slate-300 border-slate-700";
-  let dotClass = "bg-slate-400";
-  let label = status;
+export const StatusBadge: React.FC<StatusBadgeProps> = ({ status, size = 'sm' }) => {
+  const normalized = (status || 'UNKNOWN').toUpperCase().replace(/\s+/g, '_');
 
-  // Qualification Status
+  let config: BadgeStyle = {
+    bg: 'bg-slate-100 text-slate-700 border-slate-200',
+    dot: 'bg-slate-400',
+    label: status || 'Unknown',
+  };
+
+  // Qualification Statuses
   if (normalized === 'QUALIFIED') {
-    bgClass = "bg-emerald-950/60 text-emerald-300 border-emerald-800/50";
-    dotClass = "bg-emerald-400";
-    label = "Qualified";
+    config = { bg: 'bg-emerald-50 text-emerald-700 border-emerald-200', dot: 'bg-emerald-500', label: 'Qualified' };
   } else if (normalized === 'POTENTIAL') {
-    bgClass = "bg-sky-950/60 text-sky-300 border-sky-800/50";
-    dotClass = "bg-sky-400";
-    label = "Potential";
+    config = { bg: 'bg-blue-50 text-blue-700 border-blue-200', dot: 'bg-blue-600', label: 'Potential' };
   } else if (normalized === 'NEEDS_HUMAN') {
-    bgClass = "bg-amber-950/60 text-amber-300 border-amber-800/50";
-    dotClass = "bg-amber-400 animate-pulse";
-    label = "Needs Human";
-  } else if (normalized === 'NOT_QUALIFIED') {
-    bgClass = "bg-rose-950/40 text-rose-300 border-rose-900/40";
-    dotClass = "bg-rose-400";
-    label = "Not Qualified";
-  } else if (normalized === 'UNQUALIFIED') {
-    bgClass = "bg-slate-900 text-slate-400 border-slate-800";
-    dotClass = "bg-slate-500";
-    label = "Unqualified";
+    config = { bg: 'bg-amber-50 text-amber-800 border-amber-200', dot: 'bg-amber-500 animate-pulse', label: 'Needs Human' };
+  } else if (normalized === 'NOT_QUALIFIED' || normalized === 'UNQUALIFIED') {
+    config = { bg: 'bg-rose-50 text-rose-700 border-rose-200', dot: 'bg-rose-500', label: 'Not Qualified' };
   }
 
-  // CRM / Lead Status
+  // CRM / Lead Statuses
   else if (normalized === 'MEETING_SCHEDULED') {
-    bgClass = "bg-emerald-950/70 text-emerald-200 border-emerald-700/60";
-    dotClass = "bg-emerald-400";
-    label = "Meeting Scheduled";
+    config = { bg: 'bg-emerald-50 text-emerald-700 border-emerald-200', dot: 'bg-emerald-500', label: 'Meeting Scheduled' };
   } else if (normalized === 'MEETING_PENDING') {
-    bgClass = "bg-sky-950/60 text-sky-300 border-sky-800/50";
-    dotClass = "bg-sky-400";
-    label = "Meeting Pending";
+    config = { bg: 'bg-amber-50 text-amber-800 border-amber-200', dot: 'bg-amber-500', label: 'Meeting Pending' };
   } else if (normalized === 'ENGAGED') {
-    bgClass = "bg-indigo-950/60 text-indigo-300 border-indigo-800/50";
-    dotClass = "bg-indigo-400";
-    label = "Engaged";
+    config = { bg: 'bg-blue-50 text-blue-700 border-blue-200', dot: 'bg-blue-600', label: 'Engaged' };
   } else if (normalized === 'CONTACTED') {
-    bgClass = "bg-blue-950/60 text-blue-300 border-blue-800/50";
-    dotClass = "bg-blue-400";
-    label = "Contacted";
+    config = { bg: 'bg-blue-50 text-blue-700 border-blue-200', dot: 'bg-blue-500', label: 'Contacted' };
   } else if (normalized === 'DO_NOT_CONTACT' || normalized === 'OPTED_OUT') {
-    bgClass = "bg-rose-950/60 text-rose-300 border-rose-800/50";
-    dotClass = "bg-rose-400";
-    label = "Do Not Contact";
+    config = { bg: 'bg-rose-50 text-rose-700 border-rose-200', dot: 'bg-rose-500', label: 'Do Not Contact' };
   } else if (normalized === 'NEW') {
-    bgClass = "bg-slate-900 text-slate-300 border-slate-800";
-    dotClass = "bg-slate-400";
-    label = "New Lead";
+    config = { bg: 'bg-slate-100 text-slate-700 border-slate-200', dot: 'bg-slate-500', label: 'New Lead' };
   }
 
-  // Integration Status
-  else if (normalized === 'CONNECTED') {
-    bgClass = "bg-emerald-950/60 text-emerald-300 border-emerald-800/50";
-    dotClass = "bg-emerald-400";
-    label = "Connected";
-  } else if (normalized === 'RESTRICTED') {
-    bgClass = "bg-amber-950/60 text-amber-300 border-amber-800/50";
-    dotClass = "bg-amber-400";
-    label = "Restricted Access";
-  } else if (normalized === 'ERROR') {
-    bgClass = "bg-rose-950/60 text-rose-300 border-rose-800/50";
-    dotClass = "bg-rose-400";
-    label = "Error";
-  } else if (normalized === 'NOT_CONNECTED' || normalized === 'MISSING') {
-    bgClass = "bg-slate-900 text-slate-400 border-slate-800";
-    dotClass = "bg-slate-500";
-    label = "Not Connected";
+  // Integrations
+  else if (normalized === 'CONNECTED' || normalized === 'ACTIVE') {
+    config = { bg: 'bg-emerald-50 text-emerald-700 border-emerald-200', dot: 'bg-emerald-500', label: 'Connected' };
+  } else if (normalized === 'RESTRICTED' || normalized === 'DEGRADED') {
+    config = { bg: 'bg-amber-50 text-amber-800 border-amber-200', dot: 'bg-amber-500', label: 'Restricted' };
+  } else if (normalized === 'ERROR' || normalized === 'FAILED' || normalized === 'DISCONNECTED') {
+    config = { bg: 'bg-rose-50 text-rose-700 border-rose-200', dot: 'bg-rose-500', label: 'Error' };
+  } else if (normalized === 'NOT_CONNECTED' || normalized === 'MISSING' || normalized === 'IDLE') {
+    config = { bg: 'bg-slate-100 text-slate-700 border-slate-200', dot: 'bg-slate-400', label: 'Not Connected' };
   }
 
   // Conversation Status
   else if (normalized === 'HUMAN_REVIEW') {
-    bgClass = "bg-amber-950/70 text-amber-200 border-amber-700/60";
-    dotClass = "bg-amber-400 animate-pulse";
-    label = "Human Review";
+    config = { bg: 'bg-amber-50 text-amber-800 border-amber-200', dot: 'bg-amber-500 animate-pulse', label: 'Human Review' };
   } else if (normalized === 'MEETING_INTENT') {
-    bgClass = "bg-sky-950/70 text-sky-200 border-sky-700/60";
-    dotClass = "bg-sky-400";
-    label = "Meeting Intent";
+    config = { bg: 'bg-blue-50 text-blue-700 border-blue-200', dot: 'bg-blue-600', label: 'Meeting Intent' };
+  } else if (normalized === 'REPLIED') {
+    config = { bg: 'bg-emerald-50 text-emerald-700 border-emerald-200', dot: 'bg-emerald-500', label: 'Replied' };
   }
 
-  const padding = size === 'sm' ? 'px-2 py-0.5 text-xs' : 'px-2.5 py-1 text-xs';
+  const isSmall = size === 'sm';
 
   return (
-    <span className={`inline-flex items-center gap-1.5 font-medium rounded-full border ${padding} ${bgClass} font-mono tracking-tight`}>
-      <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${dotClass}`} />
-      <span>{label}</span>
+    <span
+      className={`inline-flex items-center gap-1.5 font-medium rounded-md border ${config.bg} ${
+        isSmall ? 'px-2 py-0.5 text-xs' : 'px-2.5 py-1 text-sm'
+      }`}
+    >
+      <span className={`rounded-full shrink-0 ${config.dot} ${isSmall ? 'w-1.5 h-1.5' : 'w-2 h-2'}`} />
+      <span>{config.label}</span>
     </span>
   );
 };
+
+export default StatusBadge;

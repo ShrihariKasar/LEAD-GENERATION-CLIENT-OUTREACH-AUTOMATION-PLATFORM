@@ -4,48 +4,48 @@ interface BrandLogoProps {
   size?: number;
   showText?: boolean;
   className?: string;
+  theme?: 'light' | 'dark';
 }
 
-export const BrandLogo: React.FC<BrandLogoProps> = ({ size = 28, showText = true, className = "" }) => {
+export const BrandLogo: React.FC<BrandLogoProps> = ({
+  size = 32,
+  showText = true,
+  className = "",
+  theme = 'light'
+}) => {
   return (
     <div className={`flex items-center gap-2.5 select-none ${className}`}>
-      {/* Custom Interlocking Threadline Signal SVG Mark */}
-      <svg
-        width={size}
-        height={size}
-        viewBox="0 0 32 32"
-        fill="none"
-        xmlns="http://www.w3.org/2000/svg"
-        className="flex-shrink-0"
+      {/* Brand Icon Mark */}
+      <div
+        style={{ width: size, height: size }}
+        className="bg-slate-900 text-white rounded-lg flex items-center justify-center font-bold shadow-sm transition-colors group-hover:bg-blue-600 shrink-0"
       >
-        <rect width="32" height="32" rx="6" fill="#0f172a" stroke="#1e293b" strokeWidth="1" />
-        {/* Signal Thread 1 */}
-        <path
-          d="M6 16C10 16 11 9 16 9C21 9 22 23 26 23"
-          stroke="#10b981"
+        <svg
+          width={Math.round(size * 0.6)}
+          height={Math.round(size * 0.6)}
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
           strokeWidth="2.2"
           strokeLinecap="round"
-        />
-        {/* Signal Thread 2 */}
-        <path
-          d="M6 23C11 23 12 16 16 16C20 16 21 9 26 9"
-          stroke="#0ea5e9"
-          strokeWidth="1.6"
-          strokeLinecap="round"
-          strokeDasharray="2 3"
-        />
-        {/* Convergence Node */}
-        <circle cx="16" cy="16" r="2.8" fill="#10b981" />
-        <circle cx="16" cy="16" r="5" stroke="#10b981" strokeWidth="0.8" strokeOpacity="0.4" />
-      </svg>
+          strokeLinejoin="round"
+        >
+          {/* Signal Thread 1 */}
+          <path d="M4 12c4 0 5-6 8-6s4 12 8 12" />
+          {/* Signal Thread 2 */}
+          <path d="M4 18c4 0 5-6 8-6s4-6 8-6" strokeOpacity="0.6" strokeDasharray="2 3" />
+          {/* Node */}
+          <circle cx="12" cy="12" r="2.5" fill="currentColor" />
+        </svg>
+      </div>
 
       {showText && (
         <div className="flex flex-col">
-          <span className="font-semibold tracking-wider text-sm text-slate-100 uppercase font-mono">
+          <span className={`font-bold tracking-tight text-base leading-tight ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
             Threadline
           </span>
-          <span className="text-[10px] text-slate-400 font-mono tracking-tight -mt-0.5">
-            Revenue Operations
+          <span className={`text-xs font-medium tracking-tight ${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>
+            Outreach Automation
           </span>
         </div>
       )}
